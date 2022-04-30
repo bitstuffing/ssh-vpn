@@ -1,4 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+
+import 'package:flutter/material.dart';
+import 'package:fluttertoast/fluttertoast.dart';
 
 import 'utils/utils.dart';
 import 'widgets/drawer.dart';
@@ -36,6 +42,16 @@ class HomePage extends StatefulWidget {
 class HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
+    Fluttertoast.showToast(
+        msg: "Welcome",
+        toastLength: Toast.LENGTH_LONG,
+        gravity: ToastGravity.BOTTOM,
+        timeInSecForIosWeb: 1,
+        backgroundColor: Colors.blueGrey,
+        textColor: Colors.black,
+        fontSize: 16.0
+    );
+    startService();
     return Scaffold(
         backgroundColor: bgColor,
         appBar: AppBar(title: const Text("VPN throw SSH")),
@@ -50,7 +66,7 @@ class HomePageState extends State<HomePage> {
 Widget Body(BuildContext context){
   double screenWidth = MediaQuery.of(context).size.width;
   return ListView(
-    children: <Widget>[
+    children: [
       Stack(
         alignment: Alignment.topCenter,
         overflow: Overflow.visible,
@@ -69,7 +85,7 @@ Widget upperCurvedContainer(BuildContext context) {
   return ClipPath(
     clipper: Clipper(),
     child: Container(
-      padding: EdgeInsets.symmetric(horizontal: 50, vertical: 50),
+      padding: const EdgeInsets.symmetric(horizontal: 25, vertical: 60),
       height: 240,
       width: MediaQuery.of(context).size.width,
       decoration: const BoxDecoration(
@@ -130,10 +146,9 @@ Widget circularButtonWidget(BuildContext context, width) {
                 color: bgColor,
               ),
               child: Center(
-                child: Container(
-                  height: width * 0.3,
-                  width: width * 0.3,
-                  decoration: BoxDecoration(
+                child: Padding(
+                  padding: EdgeInsets.all(30),
+                  /*decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       gradient: greenGradient,
                       boxShadow: [
@@ -142,9 +157,34 @@ Widget circularButtonWidget(BuildContext context, width) {
                           spreadRadius: 15,
                           blurRadius: 15,
                         ),
-                      ]),
-                  child: const Center(
-                    child: Icon(Icons.wifi_rounded, color: Colors.white, size: 50),
+                      ]),*/
+
+                  child: SizedBox(
+                    width: double.infinity, // <-- match_parent
+                    height: double.infinity, // <-- match-parent
+                    child: ElevatedButton(
+                      onPressed: () {
+
+                        Fluttertoast.showToast(
+                            msg: "Starting VPN service...",
+                            toastLength: Toast.LENGTH_SHORT,
+                            gravity: ToastGravity.CENTER,
+                            timeInSecForIosWeb: 1,
+                            backgroundColor: Colors.red,
+                            textColor: Colors.white,
+                            fontSize: 16.0
+                        );
+
+
+
+                      },
+                      style: ElevatedButton.styleFrom(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(55),
+                          )
+                      ),
+                      child: const Icon(Icons.wifi_rounded, color: Colors.white, size: 70),
+                    )
                   ),
                 ),
               ),
@@ -173,6 +213,14 @@ Widget circularButtonWidget(BuildContext context, width) {
       ],
     ),
   );
+}
+
+void startService() async{
+  if(Platform.isAndroid) {
+    var methodChannel = MethodChannel("com.github.bitstuffing.sshvpn.sshvpn");
+    String data = await methodChannel.invokeMethod("startService");
+    print("data: $data");
+  }
 }
 
 Widget connectedStatusText() {

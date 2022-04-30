@@ -23,85 +23,6 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget getSettingsList() {
-    /*return CustomSection(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(start: 15, top: 15, bottom: 15),
-                  child: Text('SSH'),
-                ),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  margin: EdgeInsets.symmetric(horizontal: 8),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: Column(
-                      children: [
-                        TextFormField(
-                            obscureText: false,
-                            decoration: InputDecoration(labelText: 'Host'),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Hostname/IP is required';
-                              }
-                            })
-                        ,TextFormField(
-                            obscureText: false,
-                            decoration: InputDecoration(labelText: 'Username'),
-                            validator: (value) {
-                              if (value == null || value.isEmpty) {
-                                return 'Username is required';
-                              }
-                            })
-                        ,TextFormField(
-                          obscureText: true,
-                          decoration: InputDecoration(labelText: 'Password'),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Password is required';
-                            }
-                          })
-                      ],
-                    ),
-                  ),
-                ),
-                const Padding(
-                  padding: EdgeInsetsDirectional.only(start: 14, top: 15, bottom: 15),
-                  child: Text('Configuration'),
-                ),
-                Card(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  margin: EdgeInsets.symmetric(horizontal: 8),
-                  child: Padding(
-                    padding: EdgeInsets.symmetric(vertical: 6),
-                    child: Column(
-                      children: [
-
-                        SettingsTile.switchTile(
-                          title: 'Enable Notifications',
-                          enabled: notificationsEnabled,
-                          leading: Icon(Icons.notifications_active),
-                          switchValue: true,
-                          onToggle: (value) {},
-                        ),
-                        Divider(height: 0, thickness: 0.5, indent: 50),
-
-                      ],
-                    ),
-                  ),
-                )
-              ],
-            ),
-          ),
-        );
-     */
     return MaterialApp(
       home: DefaultTabController(
         length: 2,
@@ -113,10 +34,6 @@ class SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  /**
-   * getTabBar(),
-      getTabBarView()
-   */
 
   List<Flexible> getSSHWidgets() {
     return [
@@ -177,7 +94,7 @@ class SettingsScreenState extends State<SettingsScreen> {
           children: [
 
             SettingsTile.switchTile(
-              title: 'Enable Notifications',
+              title: 'Enable Service',
               leading: const Icon(Icons.notifications_active),
               switchValue: notificationsEnabled,
               onToggle: (bool value) {
@@ -205,7 +122,7 @@ class SettingsScreenState extends State<SettingsScreen> {
   }
 
   TabBar getTabBar() {
-    return TabBar(
+    return const TabBar(
       automaticIndicatorColorAdjustment: true,
         labelColor: Color.fromRGBO(0, 0, 0, 1),
         tabs: <Widget>[
