@@ -1,7 +1,12 @@
 package com.github.bitstuffing.sshvpn.sshvpn;
 
 
+import android.app.Notification;
+import android.app.NotificationChannel;
+import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
+import android.graphics.Color;
 import android.net.VpnService;
 import android.os.Build;
 import android.os.IBinder;
@@ -50,14 +55,36 @@ public class VPNService extends VpnService {
         Log.d(TAG, "on create...");
         this.builder = new Builder();
 
-        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { //needed in the newer versions
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "messages")
                     .setContentText("Executing in background")
                     .setContentTitle("Flutter backend")
                     .setSmallIcon(R.drawable.launch_background);
-
-            startForeground(101, builder.build());
+            startModernForeground();
+        }else{ //old way
+            startForeground(101, new Notification());
         }
+    }
+
+    @RequiresApi(api = Build.VERSION_CODES.O)
+    private void startModernForeground(){
+        String NOTIFICATION_CHANNEL_ID = "com.github.bitstuffing.sshvpn.sshvpn";
+        String channelName = "VPNService Background Service";
+        NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
+        chan.setLightColor(Color.BLUE);
+        chan.setLockscreenVisibility(Notification.VISIBILITY_PRIVATE);
+        NotificationManager manager = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
+        assert manager != null;
+        manager.createNotificationChannel(chan);
+
+        NotificationCompat.Builder notificationBuilder = new NotificationCompat.Builder(this, NOTIFICATION_CHANNEL_ID);
+        Notification notification = notificationBuilder.setOngoing(true)
+                //.setSmallIcon(R.drawable.)
+                .setContentTitle("App is running in background")
+                .setPriority(NotificationManager.IMPORTANCE_MIN)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .build();
+        startForeground(2, notification);
     }
 
     @Override
@@ -80,17 +107,15 @@ public class VPNService extends VpnService {
                 try {
                     //a. Configure the TUN and get the interface.
                     while(mInterface==null){
-                        Log.i(TAG,"TUN is null, so needs more...");
+                        Thread.sleep(1000);
+                        Log.d(TAG,"TUN is null, so needs more...");
                         builder.setSession(VPNSERVICE)
-                                .addAddress("192.168.43.1", 24) //TODO check this one
                                 .addDnsServer(DNSSERVER)
                                 .addRoute("0.0.0.0", 0)
-                                .setBlocking(true)
-                                .setMtu(1280)
                                 .addDisallowedApplication(getPackageName());
                         mInterface = builder.establish();
                     }
-                    Log.i(TAG,"TUN is not null, continue...");
+                    Log.d(TAG,"TUN is not null, continue...");
                     //b. Packets to be sent are queued in this input stream.
                     FileInputStream in = new FileInputStream(mInterface.getFileDescriptor());
                     //b. Packets received need to be written to this output stream.

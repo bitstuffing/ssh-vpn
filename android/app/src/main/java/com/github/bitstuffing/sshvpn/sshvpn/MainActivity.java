@@ -49,11 +49,13 @@ public class MainActivity extends FlutterActivity {
         stopService(this.serviceIntent);
     }
 
-    private  void startService() {
+    private void startService() {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(this.serviceIntent);
         } else {
             startService(this.serviceIntent);
         }
     }
+
+
 }
