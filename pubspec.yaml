@@ -33,6 +33,7 @@ dependencies:
     git:
       url: https://github.com/yako-dev/flutter-settings-ui.git
       ref: master
+  fluttertoast: ^8.0.9
 
 
   # The following adds the Cupertino Icons font to your application.
