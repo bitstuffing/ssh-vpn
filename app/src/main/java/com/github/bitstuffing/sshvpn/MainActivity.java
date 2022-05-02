@@ -65,7 +65,6 @@ public class MainActivity extends AppCompatActivity {
             this.activityResultLauncher.launch(prepare);
         }
 
-
         binding = ActivityMainBinding.inflate(getLayoutInflater());
         setContentView(binding.getRoot());
 
@@ -97,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-    public void requestPower() {
+    /*public void requestPower() {
         if (checkSelfPermission(Manifest.permission.BIND_VPN_SERVICE)!= PackageManager.PERMISSION_GRANTED) {
             if (shouldShowRequestPermissionRationale(Manifest.permission.BIND_VPN_SERVICE)) {
                 Log.d(TAG,"shouldShowRequestPermissionRationale passed");
@@ -105,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
                 requestPermissions(new String[]{Manifest.permission.BIND_VPN_SERVICE,}, 1);
             }
         }
-    }
+    }*/
 
 
     private void buildServiceInstance() {
