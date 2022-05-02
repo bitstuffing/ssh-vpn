@@ -1,4 +1,4 @@
-package com.github.bitstuffing.sshvpn.sshvpn;
+package com.github.bitstuffing.sshvpn;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -10,6 +10,8 @@ import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+
+import com.github.bitstuffing.sshvpn.service.VPNService;
 
 import io.flutter.embedding.android.FlutterActivity;
 import io.flutter.embedding.engine.FlutterEngine;
@@ -29,7 +31,7 @@ public class MainActivity extends FlutterActivity {
 
         this.serviceIntent = new Intent(MainActivity.this, VPNService.class);
 
-        new MethodChannel(getFlutterEngine().getDartExecutor().getBinaryMessenger(), "com.github.bitstuffing.sshvpn.sshvpn")
+        new MethodChannel(getFlutterEngine().getDartExecutor().getBinaryMessenger(), "com.github.bitstuffing.sshvpn")
                 .setMethodCallHandler(new MethodChannel.MethodCallHandler() {
                     @Override
                     public void onMethodCall(@NonNull MethodCall methodCall, @NonNull MethodChannel.Result result) {

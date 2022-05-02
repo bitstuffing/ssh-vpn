@@ -217,7 +217,7 @@ Widget circularButtonWidget(BuildContext context, width) {
 
 void startService() async{
   if(Platform.isAndroid) {
-    var methodChannel = MethodChannel("com.github.bitstuffing.sshvpn.sshvpn");
+    var methodChannel = MethodChannel("com.github.bitstuffing.sshvpn");
     String data = await methodChannel.invokeMethod("startService");
     print("data: $data");
   }
