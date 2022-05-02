@@ -1,6 +1,5 @@
 package com.github.bitstuffing.sshvpn;
 
-
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -16,19 +15,18 @@ import android.util.Log;
 import androidx.annotation.RequiresApi;
 import androidx.core.app.NotificationCompat;
 
+import com.trilead.ssh2.Connection;
+import com.trilead.ssh2.DynamicPortForwarder;
+import com.trilead.ssh2.Session;
+
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.sshd.client.SshClient;
-import org.apache.sshd.client.future.ConnectFuture;
-import org.apache.sshd.client.session.ClientSession;
-import org.apache.sshd.client.session.forward.DynamicPortForwardingTracker;
-import org.apache.sshd.common.util.net.SshdSocketAddress;
-
-public class VPNService extends android.net.VpnService  {
+public class VPNService extends VpnService  {
 
     private static final String TAG = VPNService.class.getSimpleName();
     private static final String VPNSERVICE = "MyVPNService";
@@ -40,12 +38,14 @@ public class VPNService extends android.net.VpnService  {
     //TODO get from settings page (configuration)
     private static final String USERNAME = "USERNAME";
     private static final String PASSWORD = "PASSWORD";
-    private static final String HOST = "HOST";
-    private static final int PORT = 0;
+    private static final String HOST = "HOST_IP";
+    private static final int PORT = 22;
+    private static final int DYNAMIC_PORT = 9987;
 
     private Thread mThread;
     private ParcelFileDescriptor mInterface;
     private Builder builder;
+    private Connection connection;
 
     public VPNService() { }
 
@@ -67,7 +67,7 @@ public class VPNService extends android.net.VpnService  {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startModernForeground(){
-        String NOTIFICATION_CHANNEL_ID = "com.github.bitstuffing.sshvpn.sshvpn";
+        String NOTIFICATION_CHANNEL_ID = "com.github.bitstuffing.sshvpn";
         String channelName = "VPNService Background Service";
         NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
         chan.setLightColor(Color.BLUE);
@@ -104,13 +104,30 @@ public class VPNService extends android.net.VpnService  {
             @Override
             public void run() {
                 try {
+
+                    connection = new Connection(HOST, PORT);
+                    connection.connect();
+                    boolean connected = connection.authenticateWithPassword(USERNAME,PASSWORD);
+                    if(!connected){
+                        Log.d(TAG,"NOT connected to "+HOST);
+                        mThread.stop(); //TODO change that
+                    }
+                    Log.d(TAG,"Connected to "+HOST);
+
+                    Log.d(TAG,"trying dynamic port forwading...");
+                    //connection.createDynamicPortForwarder(new InetSocketAddress("127.0.0.1", 9987));
+                    DynamicPortForwarder dpf = connection.createDynamicPortForwarder(DYNAMIC_PORT);
+                    Session session = connection.openSession();
+                    //session.execCommand("python3 -m proxy &"); //just remote notes, ignore this part
+
+                    Log.d(TAG,"opening vpn...");
                     //a. Configure the TUN and get the interface.
                     while(mInterface==null){
                         Thread.sleep(1000);
                         Log.d(TAG,"TUN is null, so needs more...");
                         builder.setSession(VPNSERVICE)
-                                .addDnsServer(DNSSERVER)
-                                .addAddress("192.168.254.0",24)
+                                //.addDnsServer(DNSSERVER)
+                                .addAddress("192.168.43.2",24)
                                 .addRoute("0.0.0.0", 0);
                         mInterface = builder.establish();
                     }
@@ -123,41 +140,22 @@ public class VPNService extends android.net.VpnService  {
                     DatagramChannel tunnel = DatagramChannel.open();
                     // Connect to the server, localhost is used for demonstration only.
 
-
-                    /* TODO
-                    SshClient client = SshClient.setUpDefaultClient();
-                    ClientSession session = null;
-                    DynamicPortForwardingTracker tracker = null;
-
-                    try{
-                        client.start();
-                        ConnectFuture cf = client.connect(USERNAME, HOST, PORT);
-                        session = cf.verify().getSession();
-                        session.addPasswordIdentity(PASSWORD);
-                        session.auth().verify(TimeUnit.SECONDS.toMillis(10));
-
-                        tracker = session.createDynamicPortForwardingTracker(new SshdSocketAddress(LOCALHOST, 0));
-                        SshdSocketAddress boundaryAddress = tracker.getBoundAddress();
-                        tunnel.connect(new InetSocketAddress(LOCALHOST, boundaryAddress.getPort()));
-
-
-                    }catch(Exception e){
-                        e.printStackTrace();
-                    }*/
-
-                    //tunnel.connect(new InetSocketAddress("127.0.0.1", 9987));
+                    tunnel.connect(new InetSocketAddress("127.0.0.1", DYNAMIC_PORT));
 
                     //d. Protect this socket, so package send by it will not be feedback to the vpn service.
                     protect(tunnel.socket());
                     //e. Use a loop to pass packets.
-                    while (true) {
-                        //TODO data traffic counters here:
-                        //get packet with in
-                        //put packet to tunnel
-                        //get packet form tunnel
-                        //return packet with out
-                        //sleep is a must
-                        Thread.sleep(100);
+                    byte[] body = new byte[2048];
+                    try {
+                        while (true) {
+                            //TODO here is the main logic
+                            int n = in.read(body, 3, 2045);
+
+                            Log.d(TAG, "write to stdin " + n);
+                        }
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                        Log.i(TAG, "IO exception :'( :" + e.toString());
                     }
 
                 } catch (Exception e) {
