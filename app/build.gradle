@@ -12,7 +12,7 @@ android {
 
     defaultConfig {
         applicationId "com.github.bitstuffing.sshvpn"
-        minSdk 24
+        minSdk 26
         targetSdk 32
         versionCode 1
         versionName "1.0"
@@ -46,5 +46,17 @@ dependencies {
     androidTestImplementation 'androidx.test.ext:junit:1.1.3'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.4.0'
     implementation 'androidx.activity:activity:1.4.0'
-    implementation group: 'org.apache.sshd', name: 'sshd-core', version: '2.2.0'
+
+
+    //This dependencies are for SSH connection, needed to all logic, crypto and real java ssh
+    //Some of this libraries have been extracted from connectbot repository
+
+    // not working but... here is the source
+    //implementation group: 'org.jenkins-ci', name: 'trilead-ssh2', version: 'build-217-jenkins-215.v0314546d4656'
+    //implementation group: 'com.trilead', name: 'trilead-ssh2', version: '1.0.0-build222'
+    implementation group: 'com.google.crypto.tink', name: 'tink', version: '1.6.1'
+    implementation group: 'org.apache.httpcomponents', name: 'httpclient', version: '4.5.4'
+    implementation group: 'com.jcraft', name: 'jzlib', version: '1.1.3'
+    implementation group: 'org.mindrot', name: 'jbcrypt', version: '0.4'
+    implementation group: 'net.i2p.crypto', name: 'eddsa', version: '0.3.0'
 }
