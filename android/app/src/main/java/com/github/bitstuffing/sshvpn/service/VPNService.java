@@ -1,4 +1,4 @@
-package com.github.bitstuffing.sshvpn.sshvpn;
+package com.github.bitstuffing.sshvpn.service;
 
 
 import android.app.Notification;
@@ -58,8 +58,8 @@ public class VPNService extends VpnService {
         if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) { //needed in the newer versions
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, "messages")
                     .setContentText("Executing in background")
-                    .setContentTitle("Flutter backend")
-                    .setSmallIcon(R.drawable.launch_background);
+                    .setContentTitle("Flutter backend");
+                    //.setSmallIcon(R.drawable.launch_background);
             startModernForeground();
         }else{ //old way
             startForeground(101, new Notification());
@@ -68,7 +68,7 @@ public class VPNService extends VpnService {
 
     @RequiresApi(api = Build.VERSION_CODES.O)
     private void startModernForeground(){
-        String NOTIFICATION_CHANNEL_ID = "com.github.bitstuffing.sshvpn.sshvpn";
+        String NOTIFICATION_CHANNEL_ID = "com.github.bitstuffing.sshvpn";
         String channelName = "VPNService Background Service";
         NotificationChannel chan = new NotificationChannel(NOTIFICATION_CHANNEL_ID, channelName, NotificationManager.IMPORTANCE_NONE);
         chan.setLightColor(Color.BLUE);
