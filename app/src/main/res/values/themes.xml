@@ -21,5 +21,5 @@
 
     <style name="Theme.SshVpn.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark.ActionBar" />
 
-    <style name="Theme.SshVpn.PopupOverlay" parent="ThemeOverlay.AppCompat.Light" />
+    <style name="Theme.SshVpn.PopupOverlay" parent="ThemeOverlay.AppCompat.Dark" />
 </resources>

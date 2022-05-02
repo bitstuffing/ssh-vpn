@@ -30,6 +30,7 @@ import com.github.bitstuffing.sshvpn.databinding.ActivityMainBinding;
 
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Button;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -42,47 +43,56 @@ public class MainActivity extends AppCompatActivity {
     private Intent serviceIntent;
 
     private ActivityResultLauncher<Intent> activityResultLauncher =
-            registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
-                new ActivityResultCallback<ActivityResult>() {
-                    @Override
-                    public void onActivityResult(ActivityResult result) {
-                        if (result.getResultCode() == Activity.RESULT_OK) {
-                            Log.i(TAG,"Allowed by user");
-                        }else/* if(result.getResultCode()!=VPN_PERMISSION_CODE)*/{
-                            Log.e(TAG,"not allowed by user, try again :'(");
-                            Snackbar.make(binding.getRoot(), "You need to accept this permission, without it you're not able to run this app", Snackbar.LENGTH_LONG).setAction("Grant Permissions", null).show();
-                        }
+        registerForActivityResult(new ActivityResultContracts.StartActivityForResult(),
+            new ActivityResultCallback<ActivityResult>() {
+                @Override
+                public void onActivityResult(ActivityResult result) {
+                    if (result.getResultCode() == Activity.RESULT_OK) {
+                        Log.i(TAG,"Allowed by user");
+                    }else/* if(result.getResultCode()!=VPN_PERMISSION_CODE)*/{
+                        Log.e(TAG,"not allowed by user, try again :'(");
+                        Snackbar.make(binding.getRoot(), "You need to accept this permission, without it you're not able to run this app", Snackbar.LENGTH_LONG).setAction("Grant Permissions", null).show();
                     }
-                });
+                }
+            });
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Intent prepare = VpnService.prepare(this);
-        if (prepare != null){
-            //startActivityForResult(prepare, VPN_PERMISSION_CODE); //deprecated, use next line
-            this.activityResultLauncher.launch(prepare);
-        }
+        this.binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(this.binding.getRoot());
 
-        binding = ActivityMainBinding.inflate(getLayoutInflater());
-        setContentView(binding.getRoot());
-
-        setSupportActionBar(binding.toolbar);
+        setSupportActionBar(this.binding.toolbar);
 
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_content_main);
-        appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
+        this.appBarConfiguration = new AppBarConfiguration.Builder(navController.getGraph()).build();
         NavigationUI.setupActionBarWithNavController(this, navController, appBarConfiguration);
 
-        binding.fab.setOnClickListener(new View.OnClickListener() {
+        buildServiceInstance();
+
+        findViewById(R.id.connect_button).setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                //Snackbar.make(view, "Replace with your own action", Snackbar.LENGTH_LONG).setAction("Action", null).show();
                 //requestPower();
-                buildServiceInstance();
+                //buildServiceInstance();
                 startService();
             }
         });
+        Button button = findViewById(R.id.button_first);
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.BIND_VPN_SERVICE) == PackageManager.PERMISSION_DENIED){
+            button.setEnabled(true);
+            Snackbar.make(this.binding.getRoot(), "Please grant needed permissions", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+            button.setOnClickListener(new View.OnClickListener(){
+                @Override
+                public void onClick(View view) {
+                    grantPermission(); //request permissions
+                }
+            });
+        }else{
+            Snackbar.make(this.binding.getRoot(), "Thanks, it's right configured", Snackbar.LENGTH_LONG).setAction("Action", null).show();
+            button.setEnabled(false);
+        }
     }
 
     private ActivityResultLauncher<String> requestPermissionLauncher =
@@ -106,17 +116,21 @@ public class MainActivity extends AppCompatActivity {
         }
     }*/
 
-
     private void buildServiceInstance() {
-        grantPermission();
+        //grantPermission();
         this.serviceIntent = new Intent(getApplicationContext(), VPNService.class);
     }
 
     private void grantPermission() {
-        this.serviceIntent = VpnService.prepare(getApplicationContext());
+        /*this.serviceIntent = VpnService.prepare(getApplicationContext());
         this.requestPermissionLauncher.launch(Manifest.permission.CAMERA);
         checkPermission(Manifest.permission.INTERNET, VPN_PERMISSION_CODE);
-        Log.d(TAG,"Internet permission checked!");
+        Log.d(TAG,"Internet permission checked!");*/
+        Intent prepare = VpnService.prepare(this);
+        if (prepare != null){
+            //startActivityForResult(prepare, VPN_PERMISSION_CODE); //deprecated, use next line (new way)
+            this.activityResultLauncher.launch(prepare);
+        }
     }
 
     private void startService() {
