@@ -22,9 +22,13 @@ import com.trilead.ssh2.Session;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
+import java.util.Arrays;
 
 public class VPNService extends VpnService  {
 
@@ -35,10 +39,14 @@ public class VPNService extends VpnService  {
     private static final String LOCALHOST = "127.0.0.1";
     private static final String DNSSERVER = "1.1.1.1";
 
+    private static final int IP_PACKET_MAX_LENGTH = 65535;
+
+    private byte []mResponseBuffer = new byte[IP_PACKET_MAX_LENGTH];
+
     //TODO get from settings page (configuration)
     private static final String USERNAME = "USERNAME";
     private static final String PASSWORD = "PASSWORD";
-    private static final String HOST = "HOST_IP";
+    private static final String HOST = "IP";
     private static final int PORT = 22;
     private static final int DYNAMIC_PORT = 9987;
 
@@ -105,6 +113,8 @@ public class VPNService extends VpnService  {
             public void run() {
                 try {
 
+                    //START - SSH PART
+
                     connection = new Connection(HOST, PORT);
                     connection.connect();
                     boolean connected = connection.authenticateWithPassword(USERNAME,PASSWORD);
@@ -114,49 +124,124 @@ public class VPNService extends VpnService  {
                     }
                     Log.d(TAG,"Connected to "+HOST);
 
-                    Log.d(TAG,"trying dynamic port forwading...");
-                    //connection.createDynamicPortForwarder(new InetSocketAddress("127.0.0.1", 9987));
-                    DynamicPortForwarder dpf = connection.createDynamicPortForwarder(DYNAMIC_PORT);
-                    Session session = connection.openSession();
+                    //Session session = connection.openSession(); //for remote commands only
                     //session.execCommand("python3 -m proxy &"); //just remote notes, ignore this part
 
+                    Log.d(TAG,"trying dynamic port forwarding (SSH)...");
+                    //connection.createDynamicPortForwarder(new InetSocketAddress("127.0.0.1", 9987));
+                    DynamicPortForwarder dpf = connection.createDynamicPortForwarder(DYNAMIC_PORT);
+
+
+                    //"END" - SSH PART
+
                     Log.d(TAG,"opening vpn...");
+
+                    //c. The UDP channel can be used to pass/get ip package to/from server
+                    DatagramChannel tunnel = DatagramChannel.open();
+
+                    //d. Protect this socket, so package send by it will not be feedback to the vpn service.
+                    protect(tunnel.socket());
+
+                    // Connect to the server, localhost is used for demonstration only.
+                    tunnel.connect(new InetSocketAddress("127.0.0.1", DYNAMIC_PORT));
+                    tunnel.configureBlocking(false);
+
+                    //HANDSHAKE
                     //a. Configure the TUN and get the interface.
                     while(mInterface==null){
                         Thread.sleep(1000);
                         Log.d(TAG,"TUN is null, so needs more...");
                         builder.setSession(VPNSERVICE)
-                                //.addDnsServer(DNSSERVER)
+                                .addDnsServer(DNSSERVER)
                                 .addAddress("192.168.43.2",24)
                                 .addRoute("0.0.0.0", 0);
                         mInterface = builder.establish();
                     }
-                    Log.d(TAG,"TUN is not null, continue...");
-                    //b. Packets to be sent are queued in this input stream.
+
+                    Log.d(TAG,"TUN is not null, handshaked! so continue...");
+
+                    // Packets to be sent are queued in this input stream.
                     FileInputStream in = new FileInputStream(mInterface.getFileDescriptor());
-                    //b. Packets received need to be written to this output stream.
+                    // Packets received need to be written to this output stream.
                     FileOutputStream out = new FileOutputStream(mInterface.getFileDescriptor());
-                    //c. The UDP channel can be used to pass/get ip package to/from server
-                    DatagramChannel tunnel = DatagramChannel.open();
-                    // Connect to the server, localhost is used for demonstration only.
 
-                    tunnel.connect(new InetSocketAddress("127.0.0.1", DYNAMIC_PORT));
+                    // Use a loop to pass packets.
+                    //START LOOP
 
-                    //d. Protect this socket, so package send by it will not be feedback to the vpn service.
-                    protect(tunnel.socket());
-                    //e. Use a loop to pass packets.
-                    byte[] body = new byte[2048];
-                    try {
-                        while (true) {
-                            //TODO here is the main logic
-                            int n = in.read(body, 3, 2045);
+                    ByteBuffer byteBuffer = ByteBuffer.allocate(IP_PACKET_MAX_LENGTH);
+                    while (true) {
+                        int read = in.read(byteBuffer.array());
+                        if (read > 0) {
+                            IPPacket.PACKET.setPacket(byteBuffer.array());
+                            int protocol = IPPacket.PACKET.getProtocol();
+                            switch (protocol) {
+                                case IPPacket.TRANSPORT_PROTOCOL_TCP:
+                                    // TODO implement at right way
 
-                            Log.d(TAG, "write to stdin " + n);
+                                    byteBuffer.limit(read);
+
+                                    debugPacket(byteBuffer);
+
+                                    tunnel.write(byteBuffer);
+                                    byteBuffer.clear();
+
+                                    break;
+                                case IPPacket.TRANSPORT_PROTOCOL_UDP:
+                                    DatagramSocket datagramSocket = new DatagramSocket();
+                                    if (protect(datagramSocket)) {
+                                        // Handle an IOException if anything goes wrong with a data transfer
+                                        // done by the protected socket.
+                                        try {
+                                            DatagramPacket request = new DatagramPacket(IPPacket.PACKET.getPayload(),
+                                                    IPPacket.PACKET.getPayload().length,
+                                                    Inet4Address.getByAddress(IPPacket.PACKET.getDstIpAddress()),
+                                                    IPPacket.PACKET.getDstPort());
+                                            datagramSocket.send(request);
+
+                                            DatagramPacket responsePacket = new DatagramPacket(mResponseBuffer, mResponseBuffer.length);
+                                            datagramSocket.receive(responsePacket);
+                                            IPPacket.PACKET.swapIpAddresses();
+                                            byte []responseData = Arrays.copyOfRange(mResponseBuffer, 0, responsePacket.getLength());
+
+                                            int ipHeader = IPPacket.PACKET.getIpHeaderLength();
+                                            int transportHeader = IPPacket.PACKET.getTransportLayerHeaderLength();
+                                            int headerLengths = ipHeader + transportHeader;
+                                            IPPacket.PACKET.setTotalLength(headerLengths + responseData.length);
+                                            IPPacket.PACKET.setPayload(headerLengths, responseData);
+                                            /*
+                                             * Before computing the checksum of the IP header:
+                                             *
+                                             * 1. Swap IP addresses.
+                                             * 2. Calculate the total length.
+                                             * 3. Identification (later)
+                                             */
+                                            IPPacket.PACKET.calculateIpHeaderCheckSum();
+
+                                            IPPacket.PACKET.swapPortNumbers();
+                                            IPPacket.PACKET.setUdpHeaderAndDataLength(transportHeader + responseData.length);
+                                            /*
+                                             * Before computing the checksum of the UDP header and data:
+                                             * 1. Swap the port numbers.
+                                             * 2. Set the response data (setPayload).
+                                             * 3. Set the UDP header and data length.
+                                             */
+                                            IPPacket.PACKET.updateUdpCheckSum();
+
+                                            out.write(IPPacket.PACKET.getPacket(), 0, IPPacket.PACKET.getTotalLength());
+                                        } catch (IOException e) {
+                                            Log.e(TAG, "", e);
+                                        } finally {
+                                            datagramSocket.close();
+                                        }
+                                    } else {
+                                        throw new IllegalStateException("Failed to create a protected UDP socket");
+                                    }
+                                    break;
+                            }
                         }
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                        Log.i(TAG, "IO exception :'( :" + e.toString());
                     }
+
+                    //END LOOP
 
                 } catch (Exception e) {
                     // Catch any exception
@@ -185,5 +270,64 @@ public class VPNService extends VpnService  {
             this.mThread.interrupt();
         }
         super.onDestroy();
+    }
+
+    private void debugPacket(ByteBuffer packet) {
+        /*
+        for(int i = 0; i < length; ++i)
+        {
+            byte buffer = packet.get();
+
+            Log.d(TAG, "byte:"+buffer);
+        }*/
+
+
+        int buffer = packet.get();
+        int version;
+        int headerlength;
+        version = buffer >> 4;
+        headerlength = buffer & 0x0F;
+        headerlength *= 4;
+        Log.d(TAG, "IP Version:" + version);
+        Log.d(TAG, "Header Length:" + headerlength);
+
+        String status = "";
+        status += "Header Length:" + headerlength;
+
+        buffer = packet.get();      //DSCP + EN
+        buffer = packet.getChar();  //Total Length
+
+        Log.d(TAG, "Total Length:" + buffer);
+
+        buffer = packet.getChar();  //Identification
+        buffer = packet.getChar();  //Flags + Fragment Offset
+        buffer = packet.get();      //Time to Live
+        buffer = packet.get();      //Protocol
+
+        Log.d(TAG, "Protocol:" + buffer);
+
+        status += "  Protocol:" + buffer;
+
+        buffer = packet.getChar();  //Header checksum
+
+        String sourceIP = "";
+        buffer = packet.get();  //Source IP 1st Octet
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = packet.get();  //Source IP 2nd Octet
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = packet.get();  //Source IP 3rd Octet
+        sourceIP += buffer;
+        sourceIP += ".";
+
+        buffer = packet.get();  //Source IP 4th Octet
+        sourceIP += buffer;
+
+        Log.d(TAG, "Source IP:" + sourceIP);
+
+        status += "   Source IP:" + sourceIP;
     }
 }
